@@ -1,0 +1,61 @@
+import sys
+import paho.mqtt.client as mqtt
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QTextEdit, QPushButton
+
+MQTT_BROKER = "localhost"
+MQTT_PORT = 1883
+TOPICO_ENTRADA = "assistente/voz"
+TOPICO_RESPOSTA = "assistente/resposta"
+
+class AssistenteGUI(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Assistente Virtual - Aurelius")
+        self.setGeometry(200, 200, 500, 400)
+
+        layout = QVBoxLayout()
+
+        self.label_voz = QLabel("🗣️ Você disse:")
+        self.txt_voz = QTextEdit()
+        self.txt_voz.setReadOnly(True)
+
+        self.label_resposta = QLabel("🤖 Aurelius respondeu:")
+        self.txt_resposta = QTextEdit()
+        self.txt_resposta.setReadOnly(True)
+
+        self.btn_limpar = QPushButton("🧹 Limpar")
+        self.btn_limpar.clicked.connect(self.limpar_chat)
+
+        layout.addWidget(self.label_voz)
+        layout.addWidget(self.txt_voz)
+        layout.addWidget(self.label_resposta)
+        layout.addWidget(self.txt_resposta)
+        layout.addWidget(self.btn_limpar)
+
+        self.setLayout(layout)
+
+        # Configurar MQTT
+        self.mqtt_client = mqtt.Client()
+        self.mqtt_client.on_message = self.on_mqtt_message
+        self.mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        self.mqtt_client.subscribe(TOPICO_ENTRADA)
+        self.mqtt_client.subscribe(TOPICO_RESPOSTA)
+
+        self.mqtt_client.loop_start()
+
+    def on_mqtt_message(self, client, userdata, msg):
+        texto = msg.payload.decode("utf-8")
+        if msg.topic == TOPICO_ENTRADA:
+            self.txt_voz.append(texto)
+        elif msg.topic == TOPICO_RESPOSTA:
+            self.txt_resposta.append(texto)
+
+    def limpar_chat(self):
+        self.txt_voz.clear()
+        self.txt_resposta.clear()
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    gui = AssistenteGUI()
+    gui.show()
+    sys.exit(app.exec_())
